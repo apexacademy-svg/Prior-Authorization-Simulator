@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prior Authorization Simulator</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <style>
+    body { box-sizing: border-box; }
+    * { box-sizing: border-box; }
+    .tooltip { position: relative; }
+    .tooltip:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e40af;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 50;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .pulse-animate {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .shake {
+      animation: shake 0.5s;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    .slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="bg-gray-50">
+  <div class="h-full w-full bg-gradient-to-br from-blue-50 to-indigo-50 p-6"><!-- Header -->
+   <div class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+     <div class="flex items-center gap-3">
+      <div class="bg-blue-600 p-3 rounded-lg"><i data-lucide="stethoscope" class="text-white" style="width: 24px; height: 24px;"></i>
+      </div>
+      <h1 id="appTitle" class="text-3xl font-bold text-gray-900">Prior Authorization Simulator</h1>
+     </div>
+     <div class="flex gap-3"><button id="teacherBtn" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"> <i data-lucide="lightbulb" style="width: 18px; height: 18px;"></i> <span>Teacher Mode</span> </button> <button id="resetBtn" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"> <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i> <span>Reset</span> </button>
+     </div>
+    </div>
+   </div><!-- Main Container -->
+   <div class="grid grid-cols-2 gap-6 h-full"><!-- LEFT: EMR Panel -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-600">
+     <div class="flex items-center gap-2 mb-6"><i data-lucide="file-text" class="text-blue-600" style="width: 24px; height: 24px;"></i>
+      <h2 class="text-2xl font-bold text-gray-900">Electronic Medical Record</h2>
+     </div><!-- Patient Header -->
+     <div class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-200">
+      <div class="grid grid-cols-2 gap-4">
+       <div>
+        <p class="text-sm text-gray-600 font-medium">PATIENT NAME</p>
+        <p id="emrPatientName" class="text-lg font-bold text-gray-900">John Smith</p>
+       </div>
+       <div>
+        <p class="text-sm text-gray-600 font-medium">DATE OF BIRTH</p>
+        <p id="emrDOB" class="text-lg font-bold text-gray-900">03/15/1978</p>
+       </div>
+       <div>
+        <p class="text-sm text-gray-600 font-medium">MEMBER ID</p>
+        <p id="emrMemberID" class="text-lg font-bold text-blue-600">HLT-987654321</p>
+       </div>
+       <div>
+        <p class="text-sm text-gray-600 font-medium">INSURANCE PLAN</p>
+        <p id="emrPlan" class="text-lg font-bold text-gray-900">BlueCross PPO</p>
+       </div>
+      </div>
+     </div><!-- Clinical Notes -->
+     <div class="mb-6"><label class="block text-sm font-bold text-gray-700 mb-2">CLINICAL NOTES (Provider Documentation)</label> <textarea id="emrNotes" class="w-full p-4 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none text-sm h-32 bg-gray-50" readonly>Patient presents with chronic lower back pain and radiculopathy in left leg for 6+ months. Conservative treatment failed. MRI imaging of lumbar spine indicated to assess for disc herniation and nerve compression. Medical necessity: Rule out surgical pathology.</textarea>
+     </div><!-- Authorization Field -->
+     <div class="mb-6"><label class="block text-sm font-bold text-gray-700 mb-2">AUTHORIZATION NUMBER (Post-Approval)</label> <input id="emrAuthNumber" type="text" placeholder="AUTH-XXXXX (Will be populated after approval)" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none text-sm bg-gray-50" readonly>
+     </div><!-- Copy Button --> <button id="copyAuthBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"> <i data-lucide="copy" style="width: 18px; height: 18px;"></i> <span>Copy Auth to Clipboard</span> </button>
+    </div><!-- RIGHT: Payer Portal Panel -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-emerald-600">
+     <div class="flex items-center gap-2 mb-6"><i data-lucide="shield-check" class="text-emerald-600" style="width: 24px; height: 24px;"></i>
+      <h2 class="text-2xl font-bold text-gray-900">Payer Portal (Availity)</h2>
+     </div><!-- Eligibility Check Section -->
+     <div class="bg-emerald-50 p-4 rounded-lg mb-6 border border-emerald-200"><label class="block text-sm font-bold text-gray-700 mb-2">CHECK ELIGIBILITY</label>
+      <div class="flex gap-2"><input id="eligibilityMemberID" type="text" placeholder="Enter Member ID" class="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:border-emerald-600 focus:outline-none text-sm"> <button id="checkEligBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-bold transition">Check</button>
+      </div>
+      <div id="eligibilityResult" class="mt-3 text-sm text-gray-700 hidden">
+       <p><strong>Active Coverage:</strong> <span id="eligStatus" class="text-emerald-600">Yes</span></p>
+       <p><strong>Deductible:</strong> <span id="eligDeductible">$1,000 (Met)</span></p>
+      </div>
+     </div><!-- Authorization Entry Form -->
+     <div class="space-y-4 mb-6">
+      <div><label class="block text-sm font-bold text-gray-700 mb-1">NPI (Provider Number) <span class="tooltip" data-tooltip="National Provider Identifier - 10 digit provider ID">❓</span></label> <input id="npiField" type="text" placeholder="e.g., 1234567890" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-emerald-600 focus:outline-none text-sm teacher-highlight" value="1122334455">
+      </div>
+      <div><label class="block text-sm font-bold text-gray-700 mb-1">ICD-10 CODE (Diagnosis) <span class="tooltip" data-tooltip="International Classification of Diseases code">❓</span></label> <input id="icd10Field" type="text" placeholder="e.g., M54.5 (Radiculopathy)" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-emerald-600 focus:outline-none text-sm teacher-highlight" value="M54.5">
+      </div>
+      <div><label class="block text-sm font-bold text-gray-700 mb-1">CPT CODE (Procedure) <span class="tooltip" data-tooltip="Current Procedural Terminology - try 72148 (MRI) or 99213 (Office Visit)">❓</span></label> <input id="cptField" type="text" placeholder="e.g., 72148 (MRI)" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-emerald-600 focus:outline-none text-sm teacher-highlight" value="72148">
+      </div>
+      <div><label class="block text-sm font-bold text-gray-700 mb-1">PLACE OF SERVICE <span class="tooltip" data-tooltip="Where procedure will occur: 11=Office, 24=Ambulatory Surgical Center">❓</span></label> <select id="posField" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-emerald-600 focus:outline-none text-sm teacher-highlight"> <option value="11">11 - Office</option> <option value="24">24 - Ambulatory Surgical Center</option> <option value="25">25 - Outpatient Hospital</option> <option value="81">81 - Independent Laboratory</option> </select>
+      </div><button id="attachDocBtn" class="w-full bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 rounded-lg font-bold transition border-2 border-dashed border-blue-400 flex items-center justify-center gap-2"> <i data-lucide="paperclip" style="width: 18px; height: 18px;"></i> <span id="attachStatus">Attach Clinical Documentation</span> </button>
+     </div><!-- Submit Button --> <button id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"> <i data-lucide="send" style="width: 18px; height: 18px;"></i> <span>Submit Authorization Request</span> </button> <!-- Result Card -->
+     <div id="resultCard" class="mt-6 p-4 rounded-lg border-2 hidden slide-in">
+      <div class="flex items-start gap-3"><i id="resultIcon" data-lucide="check-circle" class="text-emerald-600 flex-shrink-0" style="width: 24px; height: 24px;"></i>
+       <div class="flex-1">
+        <p class="font-bold text-lg" id="resultStatus">Pending - Review Required</p>
+        <p class="text-sm text-gray-700 mt-1" id="resultMessage">Your request has been submitted for review.</p>
+        <p class="text-sm font-mono bg-gray-100 p-2 rounded mt-2 text-gray-900" id="resultAuthNumber">AUTH-88291</p>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div><!-- Audit Log (Bottom) -->
+   <div class="mt-6 bg-white rounded-xl shadow-lg p-6">
+    <div class="flex items-center gap-2 mb-4"><i data-lucide="clipboard-list" class="text-gray-600" style="width: 24px; height: 24px;"></i>
+     <h3 class="text-xl font-bold text-gray-900">Audit Log</h3>
+    </div>
+    <div id="auditLog" class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-xs h-32 overflow-y-auto">
+     <p class="text-gray-500">[System Ready] Waiting for user input...</p>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Initialize Lucide
+    lucide.createIcons();
+
+    // State
+    let teacherMode = false;
+    let documentationAttached = false;
+    let auditEntries = [];
+
+    // Config object for Element SDK
+    let config = {
+      app_title: "Prior Authorization Simulator",
+      patient_name: "John Smith",
+      provider_note: "Patient presents with chronic lower back pain and radiculopathy in left leg for 6+ months. Conservative treatment failed. MRI imaging of lumbar spine indicated to assess for disc herniation and nerve compression. Medical necessity: Rule out surgical pathology."
+    };
+
+    // Element SDK initialization
+    async function initElementSDK() {
+      if (window.elementSdk) {
+        const defaultConfig = { ...config };
+        
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (newConfig) => {
+            config = newConfig;
+            document.getElementById('appTitle').textContent = config.app_title || defaultConfig.app_title;
+            document.getElementById('emrPatientName').textContent = config.patient_name || defaultConfig.patient_name;
+            document.getElementById('emrNotes').value = config.provider_note || defaultConfig.provider_note;
+            lucide.createIcons();
+          },
+          mapToCapabilities: (cfg) => ({
+            recolorables: [],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (cfg) => new Map([
+            ["app_title", cfg.app_title || defaultConfig.app_title],
+            ["patient_name", cfg.patient_name || defaultConfig.patient_name],
+            ["provider_note", cfg.provider_note || defaultConfig.provider_note]
+          ])
+        });
+      }
+    }
+
+    // Utility: Add audit log entry
+    function addAuditEntry(message) {
+      const time = new Date().toLocaleTimeString();
+      const entry = `[${time}] ${message}`;
+      auditEntries.push(entry);
+      const auditLog = document.getElementById('auditLog');
+      auditLog.innerHTML = auditEntries.map(e => `<p>${e}</p>`).join('');
+      auditLog.scrollTop = auditLog.scrollHeight;
+    }
+
+    // Utility: Generate Auth Number
+    function generateAuthNumber() {
+      return 'AUTH-' + Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+    }
+
+    // Teacher Mode Toggle
+    document.getElementById('teacherBtn').addEventListener('click', () => {
+      teacherMode = !teacherMode;
+      const btn = document.getElementById('teacherBtn');
+      const highlights = document.querySelectorAll('.teacher-highlight');
+      
+      if (teacherMode) {
+        btn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+        btn.classList.add('bg-green-600', 'hover:bg-green-700');
+        highlights.forEach(el => {
+          el.classList.add('ring-2', 'ring-green-500', 'bg-green-50');
+        });
+        addAuditEntry('✓ TEACHER MODE ACTIVATED - Key fields highlighted in green');
+      } else {
+        btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+        btn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+        highlights.forEach(el => {
+          el.classList.remove('ring-2', 'ring-green-500', 'bg-green-50');
+        });
+        addAuditEntry('Teacher mode deactivated');
+      }
+    });
+
+    // Check Eligibility
+    document.getElementById('checkEligBtn').addEventListener('click', () => {
+      const memberId = document.getElementById('eligibilityMemberID').value.trim();
+      if (!memberId) {
+        alert('Please enter a Member ID');
+        return;
+      }
+      document.getElementById('eligibilityResult').classList.remove('hidden');
+      addAuditEntry(`✓ Eligibility checked for Member ID: ${memberId}`);
+    });
+
+    // Attach Documentation
+    document.getElementById('attachDocBtn').addEventListener('click', () => {
+      documentationAttached = !documentationAttached;
+      const btn = document.getElementById('attachDocBtn');
+      const status = document.getElementById('attachStatus');
+      if (documentationAttached) {
+        btn.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'text-blue-700', 'border-blue-400');
+        btn.classList.add('bg-emerald-100', 'hover:bg-emerald-200', 'text-emerald-700', 'border-emerald-400');
+        status.textContent = '✓ Documentation Attached';
+        addAuditEntry('✓ Clinical documentation attached to request');
+      } else {
+        btn.classList.remove('bg-emerald-100', 'hover:bg-emerald-200', 'text-emerald-700', 'border-emerald-400');
+        btn.classList.add('bg-blue-100', 'hover:bg-blue-200', 'text-blue-700', 'border-blue-400');
+        status.textContent = 'Attach Clinical Documentation';
+        addAuditEntry('Documentation removed from request');
+      }
+    });
+
+    // Submit Authorization
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      const npi = document.getElementById('npiField').value.trim();
+      const icd10 = document.getElementById('icd10Field').value.trim();
+      const cpt = document.getElementById('cptField').value.trim();
+      const pos = document.getElementById('posField').value;
+
+      if (!npi || !icd10 || !cpt) {
+        alert('Please fill in all required fields (NPI, ICD-10, CPT)');
+        return;
+      }
+
+      const resultCard = document.getElementById('resultCard');
+      const resultStatus = document.getElementById('resultStatus');
+      const resultMessage = document.getElementById('resultMessage');
+      const resultAuthNumber = document.getElementById('resultAuthNumber');
+      const resultIcon = document.getElementById('resultIcon');
+
+      // Logic: Determine outcome based on CPT code
+      let status, message, icon, authNum;
+
+      if (cpt === '99213') {
+        // Office Visit - No Auth Required
+        status = 'No Auth Required';
+        message = 'This procedure code does not require prior authorization for this member.';
+        icon = 'info';
+        authNum = 'N/A';
+        resultCard.classList.remove('border-amber-300', 'bg-amber-50');
+        resultCard.classList.add('border-blue-300', 'bg-blue-50');
+      } else if (cpt === '72148' || cpt === '70553' || cpt === '70450') {
+        // MRI/CT - Pending Review
+        status = 'Pending - Review Required';
+        message = 'Your request requires clinical review. Authorization pending.';
+        icon = 'clock';
+        authNum = generateAuthNumber();
+        resultCard.classList.remove('border-amber-300', 'bg-amber-50');
+        resultCard.classList.add('border-amber-300', 'bg-amber-50');
+      } else {
+        // Unknown CPT - Default Pending
+        status = 'Pending - Review Required';
+        message = 'Your request has been submitted for review.';
+        icon = 'clock';
+        authNum = generateAuthNumber();
+        resultCard.classList.remove('border-amber-300', 'bg-amber-50');
+        resultCard.classList.add('border-amber-300', 'bg-amber-50');
+      }
+
+      resultStatus.textContent = status;
+      resultMessage.textContent = message;
+      resultAuthNumber.textContent = authNum;
+      resultIcon.setAttribute('data-lucide', icon);
+      resultCard.classList.remove('hidden');
+      lucide.createIcons();
+
+      // Update EMR if auth generated
+      if (authNum !== 'N/A') {
+        document.getElementById('emrAuthNumber').value = authNum;
+      }
+
+      addAuditEntry(`✓ Authorization request submitted | CPT: ${cpt} | ICD-10: ${icd10} | NPI: ${npi} | Status: ${status}`);
+    });
+
+    // Copy Auth to Clipboard
+    document.getElementById('copyAuthBtn').addEventListener('click', async () => {
+      const authNum = document.getElementById('emrAuthNumber').value;
+      if (!authNum) {
+        alert('No authorization number to copy');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(authNum);
+        addAuditEntry(`✓ Authorization number copied to clipboard: ${authNum}`);
+        const btn = document.getElementById('copyAuthBtn');
+        btn.classList.add('pulse-animate');
+        setTimeout(() => btn.classList.remove('pulse-animate'), 2000);
+      } catch (err) {
+        alert('Failed to copy');
+      }
+    });
+
+    // Reset
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      auditEntries = [];
+      document.getElementById('auditLog').innerHTML = '<p class="text-gray-500">[System Ready] Waiting for user input...</p>';
+      document.getElementById('emrAuthNumber').value = '';
+      document.getElementById('resultCard').classList.add('hidden');
+      document.getElementById('eligibilityResult').classList.add('hidden');
+      document.getElementById('npiField').value = '1122334455';
+      document.getElementById('icd10Field').value = 'M54.5';
+      document.getElementById('cptField').value = '72148';
+      document.getElementById('posField').value = '11';
+      documentationAttached = false;
+      document.getElementById('attachDocBtn').classList.remove('bg-emerald-100', 'hover:bg-emerald-200', 'text-emerald-700', 'border-emerald-400');
+      document.getElementById('attachDocBtn').classList.add('bg-blue-100', 'hover:bg-blue-200', 'text-blue-700', 'border-blue-400');
+      document.getElementById('attachStatus').textContent = 'Attach Clinical Documentation';
+      addAuditEntry('System reset complete');
+    });
+
+    // Initialize
+    initElementSDK();
+    addAuditEntry('Prior Authorization Simulator loaded');
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f275699c6f73593',t:'MTc3NzIyNDg2Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
